@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../services/supabase_service.dart';
+import 'task_detail_screen.dart';
+import 'create_task_screen.dart';
 
 class TaskScreen extends StatefulWidget {
   const TaskScreen({super.key});
@@ -8,51 +11,137 @@ class TaskScreen extends StatefulWidget {
 }
 
 class _TaskScreenState extends State<TaskScreen> {
-  final List<Task> _tasks = [
-    Task(
-      title: 'Design UI mockups',
-      description: 'Create mockups for the new dashboard',
-      dueDate: DateTime(2025, 8, 4),
-      priority: TaskPriority.high,
-      status: TaskStatus.inProgress,
-    ),
-    Task(
-      title: 'Implement authentication',
-      description: 'Add user authentication flow',
-      dueDate: DateTime(2025, 7, 4),
-      priority: TaskPriority.high,
-      status: TaskStatus.todo,
-    ),
-    Task(
-      title: 'Write documentation',
-      description: 'Document the API endpoints',
-      dueDate: DateTime(2025, 9, 4),
-      priority: TaskPriority.medium,
-      status: TaskStatus.completed,
-    ),
-    // Add more sample tasks here
-  ];
-
-  TaskStatus _selectedStatus = TaskStatus.inProgress;
+  final _supabaseService = SupabaseService();
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _tasks = [];
+  String _selectedStatus = 'todo';
+  bool _isAdmin = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+    _checkUserRole();
+  }
+  
+  Future<void> _checkUserRole() async {
+    final userProfile = await _supabaseService.getCurrentUserProfile();
+    if (mounted) {
+      setState(() {
+        _isAdmin = userProfile?['role'] == 'admin';
+      });
+    }
+  }
+  
+  Future<void> _loadTasks() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final tasks = await _supabaseService.getTasks();
+      
+      if (mounted) {
+        setState(() {
+          _tasks = tasks;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading tasks: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _updateTaskStatus(String taskId, String status) async {
+    try {
+      await _supabaseService.updateTaskStatus(
+        taskId: taskId,
+        status: status,
+      );
+      
+      // Reload tasks after update
+      _loadTasks();
+    } catch (e) {
+      debugPrint('Error updating task status: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating task status: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
+  Future<void> _updateTaskApproval(String taskId, String approvalStatus) async {
+    try {
+      await _supabaseService.updateTaskApproval(
+        taskId: taskId,
+        approvalStatus: approvalStatus,
+      );
+      
+      // Reload tasks after update
+      _loadTasks();
+    } catch (e) {
+      debugPrint('Error updating task approval: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating task approval: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final completedTasks =
-        _tasks.where((task) => task.status == TaskStatus.completed).length;
-    final inProgressTasks =
-        _tasks.where((task) => task.status == TaskStatus.inProgress).length;
-    final todoTasks =
-        _tasks.where((task) => task.status == TaskStatus.todo).length;
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF1A1A1A),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    final todoTasks = _tasks.where((task) => task['status'] == 'todo').toList();
+    final inProgressTasks = _tasks.where((task) => task['status'] == 'in_progress').toList();
+    final completedTasks = _tasks.where((task) => task['status'] == 'completed').toList();
     final totalTasks = _tasks.length;
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CreateTaskScreen(),
+              fullscreenDialog: true,
+            ),
+          );
+          
+          if (result == true) {
+            _loadTasks();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Task created successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        },
+        backgroundColor: Colors.green.shade400,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: Column(
         children: [
           _buildProgressHeader(
-            completedTasks: completedTasks,
-            inProgressTasks: inProgressTasks,
-            todoTasks: todoTasks,
+            completedTasks: completedTasks.length,
+            inProgressTasks: inProgressTasks.length,
+            todoTasks: todoTasks.length,
             totalTasks: totalTasks,
           ),
           const SizedBox(height: 16),
@@ -86,19 +175,19 @@ class _TaskScreenState extends State<TaskScreen> {
               _buildProgressStat(
                 label: 'Completed',
                 value: completedTasks,
-                total: totalTasks,
+                total: totalTasks > 0 ? totalTasks : 1,
                 color: Colors.green.shade400,
               ),
               _buildProgressStat(
                 label: 'In Progress',
                 value: inProgressTasks,
-                total: totalTasks,
+                total: totalTasks > 0 ? totalTasks : 1,
                 color: Colors.orange.shade400,
               ),
               _buildProgressStat(
                 label: 'To Do',
                 value: todoTasks,
-                total: totalTasks,
+                total: totalTasks > 0 ? totalTasks : 1,
                 color: Colors.blue.shade400,
               ),
             ],
@@ -112,15 +201,15 @@ class _TaskScreenState extends State<TaskScreen> {
                 Row(
                   children: [
                     _buildProgressBar(
-                      width: completedTasks / totalTasks,
+                      width: totalTasks > 0 ? completedTasks / totalTasks : 0,
                       color: Colors.green.shade400,
                     ),
                     _buildProgressBar(
-                      width: inProgressTasks / totalTasks,
+                      width: totalTasks > 0 ? inProgressTasks / totalTasks : 0,
                       color: Colors.orange.shade400,
                     ),
                     _buildProgressBar(
-                      width: todoTasks / totalTasks,
+                      width: totalTasks > 0 ? todoTasks / totalTasks : 0,
                       color: Colors.blue.shade400,
                     ),
                   ],
@@ -168,184 +257,390 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   Widget _buildStatusTabs() {
+    final statusOptions = [
+      {'id': 'todo', 'label': 'To Do', 'color': Colors.blue},
+      {'id': 'in_progress', 'label': 'In Progress', 'color': Colors.orange},
+      {'id': 'completed', 'label': 'Completed', 'color': Colors.green},
+    ];
+    
     return Container(
       height: 40,
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        children:
-            TaskStatus.values.map((status) {
-              final isSelected = status == _selectedStatus;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedStatus = status),
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color:
-                          isSelected
-                              ? status.color.withOpacity(0.2)
-                              : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected ? status.color : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                    child: Text(
-                      status.label,
-                      style: TextStyle(
-                        color: isSelected ? status.color : Colors.white70,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
+        children: statusOptions.map((status) {
+          final isSelected = status['id'] == _selectedStatus;
+          final color = status['color'] as MaterialColor;
+          
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedStatus = status['id'] as String),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? color : Colors.transparent,
+                    width: 2,
                   ),
                 ),
-              );
-            }).toList(),
+                child: Text(
+                  status['label'] as String,
+                  style: TextStyle(
+                    color: isSelected ? color : Colors.white70,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
   Widget _buildTaskList() {
-    final filteredTasks =
-        _tasks.where((task) => task.status == _selectedStatus).toList();
+    final filteredTasks = _tasks.where((task) => task['status'] == _selectedStatus).toList();
+    
+    if (filteredTasks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _selectedStatus == 'todo' ? Icons.assignment_outlined :
+              _selectedStatus == 'in_progress' ? Icons.pending_actions_outlined :
+              Icons.task_alt_outlined,
+              size: 80,
+              color: Colors.grey.shade600,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No tasks found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade400,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _selectedStatus == 'todo' ? 'Add new tasks to get started' :
+              _selectedStatus == 'in_progress' ? 'Move tasks here when you start working on them' :
+              'Completed tasks will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+    
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: filteredTasks.length,
       itemBuilder: (context, index) {
         final task = filteredTasks[index];
-        return _TaskCard(task: task);
+        return _TaskCard(
+          task: task,
+          isAdmin: _isAdmin,
+          onStatusChange: _updateTaskStatus,
+          onApprovalChange: _updateTaskApproval,
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TaskDetailScreen(taskId: task['id']),
+              ),
+            );
+            
+            if (result == true) {
+              _loadTasks();
+            }
+          },
+        );
       },
     );
   }
 }
 
 class _TaskCard extends StatelessWidget {
-  final Task task;
+  final Map<String, dynamic> task;
+  final bool isAdmin;
+  final Function(String, String) onStatusChange;
+  final Function(String, String) onApprovalChange;
+  final VoidCallback onTap;
 
-  const _TaskCard({required this.task});
+  const _TaskCard({
+    required this.task,
+    required this.isAdmin,
+    required this.onStatusChange,
+    required this.onApprovalChange,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2D2D2D),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: task.priority.color.withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+    final String title = task['title'] ?? 'Untitled Task';
+    final String description = task['description'] ?? 'No description';
+    final String status = task['status'] ?? 'todo';
+    final String approvalStatus = task['approval_status'] ?? 'pending';
+    final String creatorName = task['creator']?['full_name'] ?? 'Unknown';
+    final String assigneeName = task['assignee']?['full_name'] ?? 'Unassigned';
+    
+    // Format due date if available
+    String dueDate = 'No due date';
+    if (task['due_date'] != null) {
+      final DateTime date = DateTime.parse(task['due_date']);
+      dueDate = '${date.day}/${date.month}/${date.year}';
+    }
+    
+    // Determine colors based on status
+    final Color statusColor = status == 'todo' 
+        ? Colors.blue 
+        : status == 'in_progress' 
+            ? Colors.orange 
+            : Colors.green;
+            
+    final Color approvalColor = approvalStatus == 'pending' 
+        ? Colors.grey 
+        : approvalStatus == 'approved' 
+            ? Colors.green 
+            : Colors.red;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2D2D2D),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        status == 'todo' ? Icons.assignment_outlined :
+                        status == 'in_progress' ? Icons.pending_actions_outlined :
+                        Icons.task_alt_outlined,
+                        color: statusColor,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        status == 'todo' ? 'To Do' :
+                        status == 'in_progress' ? 'In Progress' : 'Completed',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    dueDate,
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: approvalColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          approvalStatus.toUpperCase(),
+                          style: TextStyle(
+                            color: approvalColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 12,
+                            backgroundColor: Colors.blue.shade700,
+                            child: Text(
+                              creatorName.isNotEmpty ? creatorName[0].toUpperCase() : '?',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Created by $creatorName',
+                            style: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (assigneeName != 'Unassigned')
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.purple.shade700,
+                              child: Text(
+                                assigneeName.isNotEmpty ? assigneeName[0].toUpperCase() : '?',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Assigned to $assigneeName',
+                              style: TextStyle(
+                                color: Colors.grey.shade400,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (isAdmin && approvalStatus == 'pending')
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade800,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Icon(
-                      task.priority.icon,
-                      color: task.priority.color,
-                      size: 20,
+                    ElevatedButton.icon(
+                      onPressed: () => onApprovalChange(task['id'], 'approved'),
+                      icon: const Icon(Icons.check, color: Colors.white),
+                      label: const Text('Approve', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade600,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      task.priority.label,
-                      style: TextStyle(
-                        color: task.priority.color,
-                        fontWeight: FontWeight.bold,
+                    ElevatedButton.icon(
+                      onPressed: () => onApprovalChange(task['id'], 'rejected'),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      label: const Text('Reject', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade600,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
                     ),
                   ],
                 ),
-                Text(
-                  task.formattedDueDate,
-                  style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+              ),
+            if (status != 'completed')
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade800,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  task.description,
-                  style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (status == 'todo')
+                      ElevatedButton.icon(
+                        onPressed: () => onStatusChange(task['id'], 'in_progress'),
+                        icon: const Icon(Icons.play_arrow, color: Colors.white),
+                        label: const Text('Start', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade600,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                      ),
+                    if (status == 'in_progress')
+                      ElevatedButton.icon(
+                        onPressed: () => onStatusChange(task['id'], 'completed'),
+                        icon: const Icon(Icons.check_circle, color: Colors.white),
+                        label: const Text('Complete', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade600,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+          ],
+        ),
       ),
     );
   }
-}
-
-class Task {
-  final String title;
-  final String description;
-  final DateTime dueDate;
-  final TaskPriority priority;
-  final TaskStatus status;
-
-  Task({
-    required this.title,
-    required this.description,
-    required this.dueDate,
-    required this.priority,
-    required this.status,
-  });
-
-  String get formattedDueDate {
-    return '${dueDate.day}/${dueDate.month}/${dueDate.year}';
-  }
-}
-
-enum TaskPriority {
-  high(Icons.priority_high, Colors.red, 'High Priority'),
-  medium(Icons.radio_button_checked, Colors.orange, 'Medium Priority'),
-  low(Icons.arrow_downward, Colors.green, 'Low Priority');
-
-  final IconData icon;
-  final MaterialColor color;
-  final String label;
-
-  const TaskPriority(this.icon, this.color, this.label);
-}
-
-enum TaskStatus {
-  completed(Colors.green, 'Completed'),
-  inProgress(Colors.orange, 'In Progress'),
-  todo(Colors.blue, 'To Do');
-
-  final MaterialColor color;
-  final String label;
-
-  const TaskStatus(this.color, this.label);
 }

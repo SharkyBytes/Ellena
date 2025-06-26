@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../tasks/task_screen.dart';
+import '../tasks/create_task_screen.dart';
 import '../tickets/ticket_screen.dart';
 import '../chat/chat_screen.dart';
 
@@ -49,166 +50,21 @@ class _WorkspaceScreenState extends State<WorkspaceScreen>
   }
 
   void _showCreateTaskDialog() {
-    _selectedDate = null;
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: const Color(0xFF2D2D2D),
-            title: const Text(
-              'Create Task',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Task Title',
-                    hintStyle: TextStyle(color: Colors.grey.shade400),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey.shade700),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.dark(
-                              primary: Colors.green,
-                              surface: Color(0xFF2D2D2D),
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-
-                    if (date != null) {
-                      setState(() {
-                        _selectedDate = date;
-                      });
-                      // Close and reopen dialog to refresh with selected date
-                      Navigator.pop(context);
-                      _showCreateTaskDialog();
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade700),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today, color: Colors.grey.shade400),
-                        const SizedBox(width: 8),
-                        Text(
-                          _selectedDate != null
-                              ? 'Due: ${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                              : 'Set Deadline',
-                          style: TextStyle(
-                            color:
-                                _selectedDate != null
-                                    ? Colors.white
-                                    : Colors.grey.shade400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  dropdownColor: const Color(0xFF2D2D2D),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey.shade700),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
-                  ),
-                  items:
-                      ['Low', 'Medium', 'High'].map((priority) {
-                        return DropdownMenuItem(
-                          value: priority,
-                          child: Text(priority),
-                        );
-                      }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedPriority = value;
-                    });
-                  },
-                  hint: Text(
-                    'Priority',
-                    style: TextStyle(color: Colors.grey.shade400),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // Navigate to chat screen
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const ChatScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.smart_toy, color: Colors.green),
-                  label: const Text(
-                    'Make with AI',
-                    style: TextStyle(color: Colors.green),
-                  ),
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.green.withOpacity(0.1),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey.shade400),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  // Handle task creation
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Task created successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Create',
-                  style: TextStyle(color: Colors.green),
-                ),
-              ),
-            ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CreateTaskScreen(),
+      ),
+    ).then((result) {
+      if (result == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Task created successfully'),
+            backgroundColor: Colors.green,
           ),
-    );
+        );
+      }
+    });
   }
 
   void _showCreateTicketDialog() {
