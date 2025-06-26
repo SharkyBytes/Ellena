@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/supabase_service.dart';
+import '../../services/supabase/supabase_service.dart';
 import 'task_detail_screen.dart';
 import 'create_task_screen.dart';
 
@@ -13,42 +13,39 @@ class TaskScreen extends StatefulWidget {
 class _TaskScreenState extends State<TaskScreen> {
   final _supabaseService = SupabaseService();
   bool _isLoading = true;
-  List<Map<String, dynamic>> _tasks = [];
   String _selectedStatus = 'todo';
   bool _isAdmin = false;
   
   @override
   void initState() {
     super.initState();
-    _loadTasks();
-    _checkUserRole();
+    _loadInitialData();
   }
   
-  Future<void> _checkUserRole() async {
-    final userProfile = await _supabaseService.getCurrentUserProfile();
-    if (mounted) {
-      setState(() {
-        _isAdmin = userProfile?['role'] == 'admin';
-      });
-    }
-  }
-  
-  Future<void> _loadTasks() async {
+  Future<void> _loadInitialData() async {
     setState(() {
       _isLoading = true;
     });
     
     try {
-      final tasks = await _supabaseService.getTasks();
+      // Check if user is admin
+      final userProfile = await _supabaseService.getCurrentUserProfile();
+      if (mounted) {
+        setState(() {
+          _isAdmin = userProfile?['role'] == 'admin';
+        });
+      }
+      
+      // Initial load of tasks
+      await _supabaseService.getTasks();
       
       if (mounted) {
         setState(() {
-          _tasks = tasks;
           _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Error loading tasks: $e');
+      debugPrint('Error loading initial data: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -63,17 +60,16 @@ class _TaskScreenState extends State<TaskScreen> {
         taskId: taskId,
         status: status,
       );
-      
-      // Reload tasks after update
-      _loadTasks();
     } catch (e) {
       debugPrint('Error updating task status: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating task status: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating task status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
   
@@ -83,17 +79,16 @@ class _TaskScreenState extends State<TaskScreen> {
         taskId: taskId,
         approvalStatus: approvalStatus,
       );
-      
-      // Reload tasks after update
-      _loadTasks();
     } catch (e) {
       debugPrint('Error updating task approval: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating task approval: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating task approval: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -106,11 +101,6 @@ class _TaskScreenState extends State<TaskScreen> {
       );
     }
     
-    final todoTasks = _tasks.where((task) => task['status'] == 'todo').toList();
-    final inProgressTasks = _tasks.where((task) => task['status'] == 'in_progress').toList();
-    final completedTasks = _tasks.where((task) => task['status'] == 'completed').toList();
-    final totalTasks = _tasks.length;
-
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       floatingActionButton: FloatingActionButton(
@@ -124,7 +114,6 @@ class _TaskScreenState extends State<TaskScreen> {
           );
           
           if (result == true) {
-            _loadTasks();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Task created successfully'),
@@ -136,18 +125,38 @@ class _TaskScreenState extends State<TaskScreen> {
         backgroundColor: Colors.green.shade400,
         child: const Icon(Icons.add, color: Colors.white),
       ),
-      body: Column(
-        children: [
-          _buildProgressHeader(
-            completedTasks: completedTasks.length,
-            inProgressTasks: inProgressTasks.length,
-            todoTasks: todoTasks.length,
-            totalTasks: totalTasks,
-          ),
-          const SizedBox(height: 16),
-          _buildStatusTabs(),
-          Expanded(child: _buildTaskList()),
-        ],
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _supabaseService.tasksStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting && _isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          final tasks = snapshot.data ?? [];
+          
+          final todoTasks = tasks.where((task) => task['status'] == 'todo').toList();
+          final inProgressTasks = tasks.where((task) => task['status'] == 'in_progress').toList();
+          final completedTasks = tasks.where((task) => task['status'] == 'completed').toList();
+          final totalTasks = tasks.length;
+          
+          return Column(
+            children: [
+              _buildProgressHeader(
+                completedTasks: completedTasks.length,
+                inProgressTasks: inProgressTasks.length,
+                todoTasks: todoTasks.length,
+                totalTasks: totalTasks,
+              ),
+              const SizedBox(height: 16),
+              _buildStatusTabs(),
+              Expanded(
+                child: _buildTaskList(
+                  tasks.where((task) => task['status'] == _selectedStatus).toList()
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -299,9 +308,7 @@ class _TaskScreenState extends State<TaskScreen> {
     );
   }
 
-  Widget _buildTaskList() {
-    final filteredTasks = _tasks.where((task) => task['status'] == _selectedStatus).toList();
-    
+  Widget _buildTaskList(List<Map<String, dynamic>> filteredTasks) {
     if (filteredTasks.isEmpty) {
       return Center(
         child: Column(
@@ -358,7 +365,8 @@ class _TaskScreenState extends State<TaskScreen> {
             );
             
             if (result == true) {
-              _loadTasks();
+              // Task was updated in detail screen, refresh tasks
+              _supabaseService.getTasks();
             }
           },
         );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'services/navigation_service.dart';
-import 'services/supabase_service.dart';
+import 'services/supabase/supabase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

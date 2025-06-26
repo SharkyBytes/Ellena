@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/supabase_service.dart';
+import '../../services/supabase/supabase_service.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final String taskId;

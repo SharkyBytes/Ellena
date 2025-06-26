@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/supabase_service.dart';
+import '../../services/supabase/supabase_service.dart';
 
 class CreateTaskScreen extends StatefulWidget {
   const CreateTaskScreen({super.key});
@@ -108,6 +108,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       );
       
       if (result['success'] && mounted) {
+        // Task created successfully, return to previous screen
         Navigator.pop(context, true);
       } else if (mounted) {
         setState(() {

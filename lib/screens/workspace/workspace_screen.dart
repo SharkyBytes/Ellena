@@ -3,6 +3,7 @@ import '../tasks/task_screen.dart';
 import '../tasks/create_task_screen.dart';
 import '../tickets/ticket_screen.dart';
 import '../chat/chat_screen.dart';
+import '../../services/supabase/supabase_service.dart';
 
 class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({super.key});
