@@ -2,6 +2,7 @@ import 'base_service.dart';
 import 'auth_service.dart';
 import 'task_service.dart';
 import 'team_service.dart';
+import 'ticket_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Main service class that provides access to all Supabase services
@@ -15,6 +16,7 @@ class SupabaseService {
   late final AuthService _authService;
   late final TaskService _taskService;
   late final TeamService _teamService;
+  late final TicketService _ticketService;
   
   factory SupabaseService() {
     return _instance;
@@ -24,6 +26,7 @@ class SupabaseService {
     _authService = AuthService();
     _taskService = TaskService();
     _teamService = TeamService();
+    _ticketService = TicketService();
   }
   
   // Initialize all services
@@ -134,6 +137,70 @@ class SupabaseService {
     content: content,
   );
   
+  // Ticket methods
+  Future<List<Map<String, dynamic>>> getTickets() => _ticketService.getTickets();
+  
+  Stream<List<Map<String, dynamic>>> get ticketsStream => _ticketService.ticketsStream;
+  
+  Future<Map<String, dynamic>> createTicket({
+    required String title,
+    String? description,
+    required String priority,
+    required String category,
+    String? assignedToUserId,
+  }) => _ticketService.createTicket(
+    title: title,
+    description: description,
+    priority: priority,
+    category: category,
+    assignedToUserId: assignedToUserId,
+  );
+  
+  Future<Map<String, dynamic>> updateTicketStatus({
+    required String ticketId,
+    required String status,
+  }) => _ticketService.updateTicketStatus(
+    ticketId: ticketId,
+    status: status,
+  );
+  
+  Future<Map<String, dynamic>> updateTicketApproval({
+    required String ticketId,
+    required String approvalStatus,
+  }) => _ticketService.updateTicketApproval(
+    ticketId: ticketId,
+    approvalStatus: approvalStatus,
+  );
+  
+  Future<Map<String, dynamic>> updateTicketPriority({
+    required String ticketId,
+    required String priority,
+  }) => _ticketService.updateTicketPriority(
+    ticketId: ticketId,
+    priority: priority,
+  );
+  
+  Future<Map<String, dynamic>?> getTicketDetails(String ticketId) => 
+      _ticketService.getTicketDetails(ticketId);
+  
+  Future<Map<String, dynamic>> addTicketComment({
+    required String ticketId,
+    required String content,
+  }) => _ticketService.addTicketComment(
+    ticketId: ticketId,
+    content: content,
+  );
+  
+  Future<Map<String, dynamic>> assignTicket({
+    required String ticketId,
+    required String userId,
+  }) => _ticketService.assignTicket(
+    ticketId: ticketId,
+    userId: userId,
+  );
+  
+  List<String> getTicketCategories() => _ticketService.getTicketCategories();
+  
   // Team methods
   Future<List<Map<String, dynamic>>> getTeamMembers(String teamId) => 
       _teamService.getTeamMembers(teamId);
@@ -153,5 +220,6 @@ class SupabaseService {
   void dispose() {
     _taskService.dispose();
     _teamService.dispose();
+    _ticketService.dispose();
   }
 } 

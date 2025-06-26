@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../tasks/task_screen.dart';
 import '../tasks/create_task_screen.dart';
 import '../tickets/ticket_screen.dart';
+import '../tickets/create_ticket_screen.dart';
 import '../chat/chat_screen.dart';
 import '../../services/supabase/supabase_service.dart';
 
@@ -69,120 +70,21 @@ class _WorkspaceScreenState extends State<WorkspaceScreen>
   }
 
   void _showCreateTicketDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: const Color(0xFF2D2D2D),
-            title: const Text(
-              'Create Ticket',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Ticket Title',
-                    hintStyle: TextStyle(color: Colors.grey.shade400),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey.shade700),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  style: const TextStyle(color: Colors.white),
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'Description',
-                    hintStyle: TextStyle(color: Colors.grey.shade400),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey.shade700),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  dropdownColor: const Color(0xFF2D2D2D),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey.shade700),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
-                  ),
-                  items:
-                      ['Low', 'Medium', 'High'].map((priority) {
-                        return DropdownMenuItem(
-                          value: priority,
-                          child: Text(priority),
-                        );
-                      }).toList(),
-                  onChanged: (value) {},
-                  hint: Text(
-                    'Priority',
-                    style: TextStyle(color: Colors.grey.shade400),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // Navigate to chat screen
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const ChatScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.smart_toy, color: Colors.green),
-                  label: const Text(
-                    'Make with AI',
-                    style: TextStyle(color: Colors.green),
-                  ),
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.green.withOpacity(0.1),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey.shade400),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  // Handle ticket creation
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Ticket created successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Create',
-                  style: TextStyle(color: Colors.green),
-                ),
-              ),
-            ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CreateTicketScreen(),
+      ),
+    ).then((result) {
+      if (result == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ticket created successfully'),
+            backgroundColor: Colors.green,
           ),
-    );
+        );
+      }
+    });
   }
 
   void _showCreateMeetingDialog() {
