@@ -3,6 +3,7 @@ import 'auth_service.dart';
 import 'task_service.dart';
 import 'team_service.dart';
 import 'ticket_service.dart';
+import 'meeting_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Main service class that provides access to all Supabase services
@@ -17,6 +18,7 @@ class SupabaseService {
   late final TaskService _taskService;
   late final TeamService _teamService;
   late final TicketService _ticketService;
+  late final MeetingService _meetingService;
   
   factory SupabaseService() {
     return _instance;
@@ -27,6 +29,7 @@ class SupabaseService {
     _taskService = TaskService();
     _teamService = TeamService();
     _ticketService = TicketService();
+    _meetingService = MeetingService();
   }
   
   // Initialize all services
@@ -216,10 +219,60 @@ class SupabaseService {
   Future<Map<String, dynamic>> inviteMember(String email) => 
       _teamService.inviteMember(email);
   
+  // Meeting methods
+  Future<List<Map<String, dynamic>>> getMeetings() => _meetingService.getMeetings();
+  
+  Future<List<Map<String, dynamic>>> getUpcomingMeetings() => _meetingService.getUpcomingMeetings();
+  
+  Future<List<Map<String, dynamic>>> getPastMeetings() => _meetingService.getPastMeetings();
+  
+  Stream<List<Map<String, dynamic>>> get meetingsStream => _meetingService.meetingsStream;
+  
+  Future<Map<String, dynamic>> createMeeting({
+    required String title,
+    String? description,
+    required DateTime meetingDate,
+    String? meetingUrl,
+    String? transcription,
+    String? ai_summary,
+  }) => _meetingService.createMeeting(
+    title: title,
+    description: description,
+    meetingDate: meetingDate,
+    meetingUrl: meetingUrl,
+    transcription: transcription,
+    aiSummary: ai_summary,
+  );
+  
+  Future<Map<String, dynamic>?> getMeetingDetails(String meetingId) => 
+      _meetingService.getMeetingDetails(meetingId);
+  
+  Future<Map<String, dynamic>> deleteMeeting(String meetingId) => 
+      _meetingService.deleteMeeting(meetingId);
+  
+  Future<Map<String, dynamic>> updateMeeting({
+    required String meetingId,
+    String? title,
+    String? description,
+    DateTime? meetingDate,
+    String? meetingUrl,
+    String? transcription,
+    String? ai_summary,
+  }) => _meetingService.updateMeeting(
+    meetingId: meetingId,
+    title: title,
+    description: description,
+    meetingDate: meetingDate,
+    meetingUrl: meetingUrl,
+    transcription: transcription,
+    aiSummary: ai_summary,
+  );
+  
   // Dispose resources
   void dispose() {
     _taskService.dispose();
     _teamService.dispose();
     _ticketService.dispose();
+    _meetingService.dispose();
   }
 } 

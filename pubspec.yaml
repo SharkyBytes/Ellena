@@ -43,6 +43,12 @@ dependencies:
   
   # Local storage
   shared_preferences: ^2.2.2
+  
+  # URL handling
+  url_launcher: ^6.2.5
+  
+  # Date formatting
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:

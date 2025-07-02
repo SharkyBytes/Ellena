@@ -5,6 +5,10 @@ import '../tickets/ticket_screen.dart';
 import '../tickets/create_ticket_screen.dart';
 import '../chat/chat_screen.dart';
 import '../../services/supabase/supabase_service.dart';
+import '../meetings/create_meeting_screen.dart';
+import '../meetings/meeting_detail_screen.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class WorkspaceScreen extends StatefulWidget {
   const WorkspaceScreen({super.key});
@@ -19,6 +23,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen>
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedPriority;
+  final _supabaseService = SupabaseService();
 
   @override
   void initState() {
@@ -47,7 +52,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen>
     } else if (currentTab == 1) {
       _showCreateTicketDialog();
     } else if (currentTab == 2) {
-      _showCreateMeetingDialog();
+      _showCreateMeetingScreen();
     }
   }
 
@@ -87,159 +92,22 @@ class _WorkspaceScreenState extends State<WorkspaceScreen>
     });
   }
 
-  void _showCreateMeetingDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: const Color(0xFF2D2D2D),
-            title: const Text(
-              'Schedule Meeting',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Meeting Title',
-                    hintStyle: TextStyle(color: Colors.grey.shade400),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey.shade700),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.dark(
-                              primary: Colors.green,
-                              surface: Color(0xFF2D2D2D),
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    // Handle date selection
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade700),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today, color: Colors.grey.shade400),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Select Date',
-                          style: TextStyle(color: Colors.grey.shade400),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: () async {
-                    final time = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay.now(),
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.dark(
-                              primary: Colors.green,
-                              surface: Color(0xFF2D2D2D),
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    // Handle time selection
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade700),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.access_time, color: Colors.grey.shade400),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Select Time',
-                          style: TextStyle(color: Colors.grey.shade400),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // Navigate to chat screen
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const ChatScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.smart_toy, color: Colors.green),
-                  label: const Text(
-                    'Plan with AI',
-                    style: TextStyle(color: Colors.green),
-                  ),
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.green.withOpacity(0.1),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey.shade400),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  // Handle meeting creation
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Meeting scheduled successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Schedule',
-                  style: TextStyle(color: Colors.green),
-                ),
-              ),
-            ],
+  void _showCreateMeetingScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CreateMeetingScreen(),
+      ),
+    ).then((result) {
+      if (result == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Meeting created successfully'),
+            backgroundColor: Colors.green,
           ),
-    );
+        );
+      }
+    });
   }
 
   @override
@@ -283,410 +151,448 @@ class _WorkspaceScreenState extends State<WorkspaceScreen>
   }
 
   Widget _buildMeetingsTab() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: const Color(0xFF2D2D2D),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Meeting Statistics',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildMeetingStat(
-                    label: 'This Week',
-                    count: '3',
-                    icon: Icons.calendar_today,
-                    color: Colors.green,
-                  ),
-                  _buildMeetingStat(
-                    label: 'Hours',
-                    count: '4.5',
-                    icon: Icons.access_time,
-                    color: Colors.orange,
-                  ),
-                  _buildMeetingStat(
-                    label: 'Completed',
-                    count: '12',
-                    icon: Icons.check_circle,
-                    color: Colors.blue,
-                  ),
-                ],
-              ),
-            ],
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          TabBar(
+            tabs: const [Tab(text: 'Upcoming'), Tab(text: 'Past')],
+            labelColor: Colors.green,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Colors.green,
           ),
-        ),
-        Expanded(
-          child: DefaultTabController(
-            length: 2,
-            child: Column(
-              children: [
-                TabBar(
-                  tabs: const [Tab(text: 'Upcoming'), Tab(text: 'Past')],
-                  labelColor: Colors.green,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: Colors.green,
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [_buildUpcomingMeetings(), _buildPastMeetings()],
-                  ),
-                ),
-              ],
+          Expanded(
+            child: TabBarView(
+              children: [_buildUpcomingMeetings(), _buildPastMeetings()],
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMeetingStat({
-    required String label,
-    required String count,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: color),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          count,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildUpcomingMeetings() {
-    // Sample upcoming meetings
-    final upcomingMeetings = [
-      {'title': 'Team Sync', 'time': 'Tomorrow, 10:00 AM', 'participants': 5},
-      {'title': 'Project Review', 'time': 'Friday, 2:30 PM', 'participants': 8},
-      {
-        'title': 'Client Meeting',
-        'time': 'Next Monday, 11:00 AM',
-        'participants': 3,
-      },
-    ];
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: upcomingMeetings.length,
-      itemBuilder: (context, index) {
-        final meeting = upcomingMeetings[index];
-        return _buildUpcomingMeetingCard(
-          title: meeting['title'] as String,
-          time: meeting['time'] as String,
-          participants: meeting['participants'] as int,
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _supabaseService.getUpcomingMeetings(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error loading meetings: ${snapshot.error}',
+              style: const TextStyle(color: Colors.white),
+            ),
+          );
+        }
+        
+        final meetings = snapshot.data ?? [];
+        
+        if (meetings.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.event_busy, size: 64, color: Colors.grey.shade700),
+                const SizedBox(height: 16),
+                Text(
+                  'No upcoming meetings',
+                  style: TextStyle(color: Colors.grey.shade400, fontSize: 16),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _showCreateMeetingScreen,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Schedule Meeting'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: meetings.length,
+          itemBuilder: (context, index) {
+            final meeting = meetings[index];
+            final meetingDate = DateTime.parse(meeting['meeting_date']);
+            final dateFormat = DateFormat('EEEE, MMMM d');
+            final timeFormat = DateFormat('h:mm a');
+            
+            return _buildUpcomingMeetingCard(
+              id: meeting['id'],
+              title: meeting['title'] ?? 'Untitled Meeting',
+              time: '${dateFormat.format(meetingDate)}, ${timeFormat.format(meetingDate)}',
+              participants: meeting['participants'] ?? 0,
+              meetingUrl: meeting['meeting_url'],
+            );
+          },
         );
       },
     );
   }
 
   Widget _buildUpcomingMeetingCard({
+    required String id,
     required String title,
     required String time,
     required int participants,
+    String? meetingUrl,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2D2D2D),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.event, color: Colors.green),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.people, color: Colors.green, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$participants',
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MeetingDetailScreen(meetingId: id),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 16,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      time,
-                      style: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontSize: 14,
+        ).then((value) {
+          if (value == true) {
+            setState(() {}); // Refresh if meeting was updated or deleted
+          }
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2D2D2D),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.event, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
+                  ),
+                  if (participants > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                       child: Row(
                         children: [
-                          const Text(
-                            'AI Listening: ',
-                            style: TextStyle(color: Colors.white, fontSize: 14),
-                          ),
-                          Switch(
-                            value: false, // Default value
-                            onChanged: (value) {
-                              if (value) {
-                                _showMeetingTypeDialog();
-                              }
-                            },
-                            activeColor: Colors.green,
+                          const Icon(Icons.people, color: Colors.green, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$participants',
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 14,
                         ),
                       ),
-                      child: const Text('Join'),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (meetingUrl != null && meetingUrl.isNotEmpty)
+                        ElevatedButton(
+                          onPressed: () async {
+                            final url = Uri.parse(meetingUrl);
+                            try {
+                              if (await canLaunchUrl(url)) {
+                                await launchUrl(url, mode: LaunchMode.externalApplication);
+                              } else {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Could not launch meeting URL'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              debugPrint('Error launching URL: $e');
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error launching URL: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Join'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPastMeetings() {
-    // Sample past meetings
-    final pastMeetings = [
-      {
-        'title': 'Weekly Standup',
-        'time': 'Yesterday, 9:30 AM',
-        'duration': '45 min',
-      },
-      {
-        'title': 'Design Review',
-        'time': 'Monday, 3:00 PM',
-        'duration': '1h 15min',
-      },
-    ];
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: pastMeetings.length,
-      itemBuilder: (context, index) {
-        final meeting = pastMeetings[index];
-        return _buildPastMeetingCard(
-          title: meeting['title'] as String,
-          time: meeting['time'] as String,
-          duration: meeting['duration'] as String,
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _supabaseService.getPastMeetings(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error loading meetings: ${snapshot.error}',
+              style: const TextStyle(color: Colors.white),
+            ),
+          );
+        }
+        
+        final meetings = snapshot.data ?? [];
+        
+        if (meetings.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.history, size: 64, color: Colors.grey.shade700),
+                const SizedBox(height: 16),
+                Text(
+                  'No past meetings',
+                  style: TextStyle(color: Colors.grey.shade400, fontSize: 16),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: meetings.length,
+          itemBuilder: (context, index) {
+            final meeting = meetings[index];
+            final meetingDate = DateTime.parse(meeting['meeting_date']);
+            final dateFormat = DateFormat('EEEE, MMMM d');
+            final timeFormat = DateFormat('h:mm a');
+            
+            return _buildPastMeetingCard(
+              id: meeting['id'],
+              title: meeting['title'] ?? 'Untitled Meeting',
+              time: '${dateFormat.format(meetingDate)}, ${timeFormat.format(meetingDate)}',
+              hasTranscription: meeting['transcription'] != null && meeting['transcription'].toString().trim().isNotEmpty,
+              hasAiSummary: meeting['ai_summary'] != null && meeting['ai_summary'].toString().trim().isNotEmpty,
+            );
+          },
         );
       },
     );
   }
 
   Widget _buildPastMeetingCard({
+    required String id,
     required String title,
     required String time,
-    required String duration,
+    required bool hasTranscription,
+    required bool hasAiSummary,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2D2D2D),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.1),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MeetingDetailScreen(meetingId: id),
+          ),
+        ).then((value) {
+          if (value == true) {
+            setState(() {}); // Refresh if meeting was updated or deleted
+          }
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2D2D2D),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.1),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.event, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Completed',
+                      style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.event, color: Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Completed',
-                    style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 16,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      time,
-                      style: TextStyle(
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
                         color: Colors.grey.shade400,
-                        fontSize: 14,
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Icon(Icons.timer, size: 16, color: Colors.grey.shade400),
-                    const SizedBox(width: 8),
-                    Text(
-                      duration,
-                      style: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.description, size: 16),
-                      label: const Text('Transcription'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.withOpacity(0.2),
-                        foregroundColor: Colors.green,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                      const SizedBox(width: 8),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 14,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.summarize, size: 16),
-                      label: const Text('AI Summary'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.withOpacity(0.2),
-                        foregroundColor: Colors.blue,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (hasTranscription)
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MeetingDetailScreen(meetingId: id),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.description, size: 16),
+                          label: const Text('Transcription'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.withOpacity(0.2),
+                            foregroundColor: Colors.green,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                      if (hasTranscription && hasAiSummary)
+                        const SizedBox(width: 8),
+                      if (hasAiSummary)
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MeetingDetailScreen(meetingId: id),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.summarize, size: 16),
+                          label: const Text('AI Summary'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.withOpacity(0.2),
+                            foregroundColor: Colors.blue,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
